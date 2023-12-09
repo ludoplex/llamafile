@@ -16,23 +16,24 @@ def k(raw_key: str, arch: str) -> str:
 
 
 def should_skip_tensor(name: str, has_text: bool, has_vision: bool, has_llava: bool) -> bool:
-    if name in (
+    if name in {
         "logit_scale",
         "text_model.embeddings.position_ids",
         "vision_model.embeddings.position_ids",
-    ):
+    }:
         return True
 
-    if has_llava and name in ["visual_projection.weight", "vision_model.post_layernorm.weight", "vision_model.post_layernorm.bias"]:
+    if has_llava and name in {
+        "visual_projection.weight",
+        "vision_model.post_layernorm.weight",
+        "vision_model.post_layernorm.bias",
+    }:
         return True
 
     if name.startswith("v") and not has_vision:
         return True
 
-    if name.startswith("t") and not has_text:
-        return True
-
-    return False
+    return bool(name.startswith("t") and not has_text)
 
 
 def get_tensor_name(name: str) -> str:
@@ -97,11 +98,11 @@ if args.use_f32:
 dir_model = args.model_dir
 
 
-with open(dir_model + "/vocab.json", "r", encoding="utf-8") as f:
+with open(f"{dir_model}/vocab.json", "r", encoding="utf-8") as f:
     vocab = json.load(f)
-    tokens = [key for key in vocab]
+    tokens = list(vocab)
 
-with open(dir_model + "/config.json", "r", encoding="utf-8") as f:
+with open(f"{dir_model}/config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
     v_hparams = config["vision_config"]
     t_hparams = config["text_config"]
@@ -113,11 +114,7 @@ with open(dir_model + "/config.json", "r", encoding="utf-8") as f:
 # map from ftype to string
 ftype_str = ["f32", "f16"]
 
-ftype = 1
-if args.use_f32:
-    ftype = 0
-
-
+ftype = 0 if args.use_f32 else 1
 model = CLIPModel.from_pretrained(dir_model)
 processor = CLIPProcessor.from_pretrained(dir_model)
 
@@ -232,11 +229,10 @@ for name, data in state_dict.items():
             print("  Converting to float32")
             data = data.astype(np.float32)
             ftype_cur = 0
-    else:
-        if data.dtype != np.float32:
-            print("  Converting to float32")
-            data = data.astype(np.float32)
-            ftype_cur = 0
+    elif data.dtype != np.float32:
+        print("  Converting to float32")
+        data = data.astype(np.float32)
+        ftype_cur = 0
 
     print(f"{name} - {ftype_str[ftype_cur]} - shape = {data.shape}")
     fout.add_tensor(name, data)
@@ -247,4 +243,4 @@ fout.write_kv_data_to_file()
 fout.write_tensors_to_file()
 fout.close()
 
-print("Done. Output file: " + fname_out)
+print(f"Done. Output file: {fname_out}")

@@ -23,9 +23,9 @@ torch.save(projector, f"{args.model}/llava.projector")
 for name in mm_tensors:
     del checkpoint[name]
 
-# BakLLaVA models contain CLIP tensors in it
-clip_tensors = [k for k, v in checkpoint.items() if k.startswith("model.vision_tower")]
-if len(clip_tensors) > 0:
+if clip_tensors := [
+    k for k, v in checkpoint.items() if k.startswith("model.vision_tower")
+]:
     clip = {name.replace("vision_tower.vision_tower.", ""): checkpoint[name].float() for name in clip_tensors}
     torch.save(clip, f"{args.model}/llava.clip")
 
