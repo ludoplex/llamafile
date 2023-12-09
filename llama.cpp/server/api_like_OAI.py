@@ -28,9 +28,7 @@ def is_present(json, key):
         buf = json[key]
     except KeyError:
         return False
-    if json[key] == None:
-        return False
-    return True
+    return json[key] is not None
 
 #convert chat to prompt
 def convert_chat(messages):
@@ -54,11 +52,9 @@ def convert_chat(messages):
     return prompt
 
 def make_postData(body, chat=False, stream=False):
-    postData = {}
-    if (chat):
-        postData["prompt"] = convert_chat(body["messages"])
-    else:
-        postData["prompt"] = body["prompt"]
+    postData = {
+        "prompt": convert_chat(body["messages"]) if chat else body["prompt"]
+    }
     if(is_present(body, "temperature")): postData["temperature"] = body["temperature"]
     if(is_present(body, "top_k")): postData["top_k"] = body["top_k"]
     if(is_present(body, "top_p")): postData["top_p"] = body["top_p"]
@@ -71,10 +67,7 @@ def make_postData(body, chat=False, stream=False):
     if(is_present(body, "mirostat_eta")): postData["mirostat_eta"] = body["mirostat_eta"]
     if(is_present(body, "seed")): postData["seed"] = body["seed"]
     if(is_present(body, "logit_bias")): postData["logit_bias"] = [[int(token), body["logit_bias"][token]] for token in body["logit_bias"].keys()]
-    if (args.stop != ""):
-        postData["stop"] = [args.stop]
-    else:
-        postData["stop"] = []
+    postData["stop"] = [args.stop] if (args.stop != "") else []
     if(is_present(body, "stop")): postData["stop"] += body["stop"]
     postData["n_keep"] = -1
     postData["stream"] = stream
