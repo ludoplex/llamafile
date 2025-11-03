@@ -6,7 +6,19 @@ The two primary artifacts of the release are the `llamafile-<version>.zip` and t
 
 ## Release Process
 
-Note: Step 2 and 3 are only needed if you are making a new release of the ggml-cuda.so and ggml-rocm.so shared libraries. You only need to do this when you are making changes to the CUDA code or the API's surrounding it. Otherwise you can use the previous release of the shared libraries.
+Note: Steps 2 and 3 are only needed if you are making a new release of the ggml-cuda.so and ggml-rocm.so shared libraries. You only need to do this when you are making changes to the CUDA code or the API's surrounding it. Otherwise you can use the previous release of the shared libraries.
+
+### Preparing the Build Environment
+
+Before building, ensure all dependencies are initialized and configured:
+
+```sh
+make setup
+```
+
+This initializes git submodules (e.g., whisper.cpp) and applies llamafile patches. The patches integrate dependencies with llamafile's build system and add llamafile-specific functionality.
+
+### Release Steps
 
 1. Update the version number in `version.h`
 2. Build the ggml-cuda.so and ggml-rocm.so shared libraries on Linux. You need to do this for Llamafile and LocalScore. Llamafile uses TINYBLAS as a default and LocalScore uses CUBLAS as a default for CUDA.

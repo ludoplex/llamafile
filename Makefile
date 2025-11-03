@@ -8,6 +8,8 @@ MAKEFLAGS += --no-builtin-rules
 .DELETE_ON_ERROR:
 .FEATURES: output-sync
 
+# setup target needs to run before build/config.mk checks make version
+ifneq ($(MAKECMDGOALS),setup)
 include build/config.mk
 include build/rules.mk
 
@@ -17,6 +19,7 @@ include llama.cpp/BUILD.mk
 include stable-diffusion.cpp/BUILD.mk
 include whisper.cpp/BUILD.mk
 include localscore/BUILD.mk
+endif
 
 # the root package is `o//` by default
 # building a package also builds its sub-packages
@@ -85,5 +88,20 @@ cosmocc: $(COSMOCC) # cosmocc toolchain setup
 .PHONY: cosmocc-ci
 cosmocc-ci: $(COSMOCC) $(PREFIX)/bin/ape # cosmocc toolchain setup in ci context
 
+.PHONY: setup
+setup: # Initialize and configure all dependencies (submodules, patches, etc.)
+	@echo "Setting up dependencies..."
+	@mkdir -p o/tmp
+	@if [ ! -f whisper.cpp/.git ]; then \
+		echo "Initializing whisper.cpp submodule..."; \
+		git submodule update --init whisper.cpp; \
+	fi
+	@echo "Applying whisper.cpp patches..."
+	@export TMPDIR=$$(pwd)/o/tmp && ./whisper.cpp.patches/apply-patches.sh
+	@echo "Setup complete!"
+
+
+ifneq ($(MAKECMDGOALS),setup)
 include build/deps.mk
 include build/tags.mk
+endif
