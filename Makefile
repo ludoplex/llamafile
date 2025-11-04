@@ -98,14 +98,21 @@ setup: # Initialize and configure all dependencies (submodules, patches, etc.)
 	fi
 	@echo "Applying whisper.cpp patches..."
 	@export TMPDIR=$$(pwd)/o/tmp && ./whisper.cpp.patches/apply-patches.sh
+
 	@if [ ! -f stable-diffusion.cpp/.git ]; then \
 		echo "Initializing stable-diffusion.cpp submodule..."; \
 		git submodule update --init stable-diffusion.cpp; \
 	fi
 	@echo "Applying stable-diffusion.cpp patches..."
 	@export TMPDIR=$$(pwd)/o/tmp && ./stable-diffusion.cpp.patches/apply-patches.sh
-	@echo "Setup complete!"
 
+	@if [ ! -f llama.cpp/.git ]; then \
+		echo "Initializing llama.cpp submodule..."; \
+		git submodule update --init llama.cpp; \
+	fi
+	@echo "Applying llama.cpp patches..."
+	@export TMPDIR=$$(pwd)/o/tmp && ./llama.cpp.patches/apply-patches.sh
+	@echo "Setup complete!"
 
 ifneq ($(MAKECMDGOALS),setup)
 include build/deps.mk

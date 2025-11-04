@@ -15,9 +15,6 @@ jobs:
       - name: Clone
         id: checkout
         uses: actions/checkout@v4
-      - name: Initialize submodules  # <-- ADD THIS STEP
-        run: |
-          git submodule update --init --recursive
 
       - name: Dependencies
         id: depends
@@ -25,9 +22,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install make patch
 
-      - name: Apply whisper.cpp patches
+      - name: Setup dependencies and patch dependencies
         run: |
-          bash whisper.cpp.patches/apply-patches.sh
+          make setup
 
       - name: Cache cosmocc toolchain
         id: cache-cosmocc-toolchain

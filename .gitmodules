@@ -4,3 +4,7 @@
 [submodule "stable-diffusion.cpp"]
 	path = stable-diffusion.cpp
 	url = https://github.com/leejet/stable-diffusion.cpp.git
+[submodule "llama.cpp"]
+	path = llama.cpp
+	url = https://github.com/ggerganov/llama.cpp.git
+
