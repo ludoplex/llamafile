@@ -86,7 +86,7 @@ static te_error_t te_ensure_capacity(te_context_t *ctx, size_t required) {
 static void te_record_edit(te_context_t *ctx, te_op_type_t type,
                            te_range_t source, te_range_t dest,
                            const te_token_t *tokens, size_t n_tokens) {
-    if (ctx->readonly) return;
+    if (ctx->suppress_history) return;
 
     te_edit_op_t *op = te_alloc_edit_op();
     if (!op) return;
@@ -588,9 +588,9 @@ te_error_t te_undo(te_context_t *ctx) {
         ctx->history_tail = NULL;
     }
 
-    // Temporarily disable history recording
-    bool was_readonly = ctx->readonly;
-    ctx->readonly = true;
+    // Temporarily disable history recording (but not mutations)
+    bool was_suppress = ctx->suppress_history;
+    ctx->suppress_history = true;
 
     // Reverse the operation
     switch (op->type) {
@@ -614,7 +614,7 @@ te_error_t te_undo(te_context_t *ctx) {
             break;
     }
 
-    ctx->readonly = was_readonly;
+    ctx->suppress_history = was_suppress;
 
     // Move to redo stack
     op->next = ctx->redo_stack;
@@ -633,9 +633,9 @@ te_error_t te_redo(te_context_t *ctx) {
     te_edit_op_t *op = ctx->redo_stack;
     ctx->redo_stack = op->next;
 
-    // Temporarily disable history recording
-    bool was_readonly = ctx->readonly;
-    ctx->readonly = true;
+    // Temporarily disable history recording (but not mutations)
+    bool was_suppress = ctx->suppress_history;
+    ctx->suppress_history = true;
 
     // Redo the operation
     switch (op->type) {
@@ -656,7 +656,7 @@ te_error_t te_redo(te_context_t *ctx) {
             break;
     }
 
-    ctx->readonly = was_readonly;
+    ctx->suppress_history = was_suppress;
 
     // Move back to history
     op->next = NULL;
@@ -968,7 +968,7 @@ te_error_t te_get_top_k(te_context_t *ctx, te_pos_t pos, te_seq_id_t seq_id,
     return TE_OK;
 }
 
-float te_get_token_prob(te_context_t *ctx, te_pos_t pos, te_seq_id_t seq_id, te_token_t token) {
+float te_get_token_logit(te_context_t *ctx, te_pos_t pos, te_seq_id_t seq_id, te_token_t token) {
     if (!ctx) return -1.0f;
 
     te_compute_logits(ctx, pos, seq_id);
@@ -980,7 +980,7 @@ float te_get_token_prob(te_context_t *ctx, te_pos_t pos, te_seq_id_t seq_id, te_
         return -1.0f;
     }
 
-    return logits[token];  // Returns logit, not probability
+    return logits[token];
 }
 
 //

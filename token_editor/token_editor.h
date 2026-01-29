@@ -127,6 +127,7 @@ typedef struct te_context {
     bool           readonly;
     bool           kv_cache_dirty;
     bool           logits_valid;
+    bool           suppress_history;  // Internal: suppress history during undo/redo
 
     // Callbacks
     void (*on_token_change)(struct te_context *ctx, te_pos_t pos, te_token_t old_tok, te_token_t new_tok);
@@ -208,18 +209,8 @@ te_error_t te_replace_text(te_context_t *ctx, te_range_t range, const char *text
 // Clear all tokens
 te_error_t te_clear(te_context_t *ctx, te_seq_id_t seq_id);
 
-//
-// Batch operations
-//
-
-// Begin batch edit (for atomic multi-operation edits)
-te_error_t te_begin_batch(te_context_t *ctx);
-
-// Commit batch edit
-te_error_t te_commit_batch(te_context_t *ctx);
-
-// Rollback batch edit
-te_error_t te_rollback_batch(te_context_t *ctx);
+// NOTE: Batch operations (te_begin_batch, te_commit_batch, te_rollback_batch)
+// are planned for future implementation.
 
 //
 // Undo/Redo support
@@ -253,8 +244,7 @@ te_error_t te_copy_sequence(te_context_t *ctx, te_seq_id_t src, te_seq_id_t dst)
 // Fork sequence (copy and create new)
 te_seq_id_t te_fork_sequence(te_context_t *ctx, te_seq_id_t src);
 
-// Merge sequences (combine tokens)
-te_error_t te_merge_sequences(te_context_t *ctx, te_seq_id_t dst, te_seq_id_t src, te_pos_t at_pos);
+// NOTE: te_merge_sequences is planned for future implementation.
 
 //
 // KV Cache management
@@ -296,8 +286,8 @@ te_error_t te_compute_logits(te_context_t *ctx, te_pos_t pos, te_seq_id_t seq_id
 te_error_t te_get_top_k(te_context_t *ctx, te_pos_t pos, te_seq_id_t seq_id,
                         te_token_info_t *out, size_t k);
 
-// Get probability of specific token at position
-float te_get_token_prob(te_context_t *ctx, te_pos_t pos, te_seq_id_t seq_id, te_token_t token);
+// Get logit of specific token at position (raw log-odds, not normalized probability)
+float te_get_token_logit(te_context_t *ctx, te_pos_t pos, te_seq_id_t seq_id, te_token_t token);
 
 //
 // Search and navigation
@@ -318,8 +308,7 @@ te_error_t te_find_text(te_context_t *ctx, const char *text, te_seq_id_t seq_id,
 // Export tokens to JSON
 te_error_t te_export_json(te_context_t *ctx, te_seq_id_t seq_id, char *buf, size_t *buf_size);
 
-// Import tokens from JSON
-te_error_t te_import_json(te_context_t *ctx, te_seq_id_t seq_id, const char *json, size_t json_len);
+// NOTE: te_import_json is planned for future implementation.
 
 // Export to binary format
 te_error_t te_export_binary(te_context_t *ctx, te_seq_id_t seq_id, void *buf, size_t *buf_size);

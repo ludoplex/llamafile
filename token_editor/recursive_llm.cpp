@@ -213,7 +213,7 @@ static void rllm_remove_child(rllm_context_t *parent, rllm_context_t *child) {
 rllm_env_t *rllm_init(struct llama_model *model, rllm_env_config_t config) {
     if (!model) return NULL;
 
-    rllm_env_t *env = (rllm_context_t **)calloc(1, sizeof(rllm_env_t));
+    rllm_env_t *env = (rllm_env_t *)calloc(1, sizeof(rllm_env_t));
     if (!env) return NULL;
 
     env->model = model;
@@ -906,23 +906,26 @@ rllm_error_t rllm_send_message(rllm_context_t *from, rllm_context_t *to,
         return RLLM_ERROR_MEMORY;
     }
 
+    // Capture the write index before updating
+    size_t write_idx = to->queue_tail;
+
     msg->sender = from->id;
     msg->receiver = to->id;
-    to->message_queue[to->queue_tail] = *msg;
+    to->message_queue[write_idx] = *msg;
 
     // Copy data if present
     if (msg->data && msg->data_size > 0) {
-        to->message_queue[to->queue_tail].data = malloc(msg->data_size);
-        if (to->message_queue[to->queue_tail].data) {
-            memcpy(to->message_queue[to->queue_tail].data, msg->data, msg->data_size);
+        to->message_queue[write_idx].data = malloc(msg->data_size);
+        if (to->message_queue[write_idx].data) {
+            memcpy(to->message_queue[write_idx].data, msg->data, msg->data_size);
         }
     }
 
     to->queue_tail = next_tail;
 
-    // Trigger callback
+    // Trigger callback using the captured index
     if (to->on_message) {
-        to->on_message(to, &to->message_queue[to->queue_tail - 1]);
+        to->on_message(to, &to->message_queue[write_idx]);
     }
 
     return RLLM_OK;

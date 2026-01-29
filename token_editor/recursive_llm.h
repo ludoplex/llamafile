@@ -294,8 +294,7 @@ rllm_error_t rllm_append_prompt(rllm_context_t *ctx, const char *text, size_t le
 // Get current context as text
 rllm_error_t rllm_get_text(rllm_context_t *ctx, char *buf, size_t *buf_size);
 
-// Copy tokens from parent
-rllm_error_t rllm_copy_from_parent(rllm_context_t *ctx, te_pos_t start, te_pos_t end);
+// NOTE: rllm_copy_from_parent is planned for future implementation.
 
 //
 // Execution
@@ -308,49 +307,20 @@ rllm_error_t rllm_complete(rllm_context_t *ctx, rllm_completion_params_t params)
 rllm_error_t rllm_complete_sync(rllm_context_t *ctx, rllm_completion_params_t params,
                                  char *out, size_t *out_len);
 
-// Run completion asynchronously
-rllm_error_t rllm_complete_async(rllm_context_t *ctx, rllm_completion_params_t params);
-
-// Wait for context completion
-rllm_error_t rllm_wait(rllm_context_t *ctx, uint32_t timeout_ms);
-
-// Wait for all children to complete
-rllm_error_t rllm_wait_children(rllm_context_t *ctx, uint32_t timeout_ms);
-
-// Suspend context
-rllm_error_t rllm_suspend(rllm_context_t *ctx);
-
-// Resume context
-rllm_error_t rllm_resume(rllm_context_t *ctx);
-
-// Cancel context
-rllm_error_t rllm_cancel(rllm_context_t *ctx);
+// NOTE: Async execution APIs (rllm_complete_async, rllm_wait, rllm_wait_children,
+// rllm_suspend, rllm_resume, rllm_cancel) are planned for future implementation.
 
 //
 // Recursive evaluation patterns
 //
 
-// Evaluate prompt in child and return result to parent
+// Evaluate prompt in child context (simplified - uses parent context with snapshot)
 rllm_error_t rllm_eval_in_child(rllm_context_t *parent, const char *prompt,
                                  rllm_completion_params_t params,
                                  char *result, size_t *result_len);
 
-// Fan-out evaluation (spawn multiple children with variations)
-rllm_error_t rllm_fanout(rllm_context_t *parent, const char **prompts, size_t n_prompts,
-                          rllm_completion_params_t params,
-                          rllm_context_t **children);
-
-// Gather results from children
-rllm_error_t rllm_gather(rllm_context_t *parent, rllm_context_t **children, size_t n_children,
-                          char **results, size_t *result_lens);
-
-// Map-reduce pattern
-rllm_error_t rllm_map_reduce(rllm_context_t *parent,
-                              const char *map_prompt_template,
-                              const char **inputs, size_t n_inputs,
-                              const char *reduce_prompt_template,
-                              rllm_completion_params_t params,
-                              char *result, size_t *result_len);
+// NOTE: Fan-out/gather/map-reduce patterns (rllm_fanout, rllm_gather, rllm_map_reduce)
+// are planned for future implementation.
 
 // Self-evaluation (context evaluates its own output)
 rllm_error_t rllm_self_eval(rllm_context_t *ctx, const char *eval_prompt,
@@ -407,24 +377,11 @@ rllm_context_t *rllm_find_context(rllm_context_t *root,
 // Count descendants
 size_t rllm_count_descendants(rllm_context_t *ctx);
 
-// Prune completed children
-rllm_error_t rllm_prune_completed(rllm_context_t *ctx);
+// NOTE: Tree manipulation APIs (rllm_prune_completed, rllm_merge_child_result)
+// are planned for future implementation.
 
-// Merge child result into parent
-rllm_error_t rllm_merge_child_result(rllm_context_t *parent, rllm_context_t *child);
-
-//
-// State persistence
-//
-
-// Save context tree to file
-rllm_error_t rllm_save_tree(rllm_context_t *root, const char *path);
-
-// Load context tree from file
-rllm_context_t *rllm_load_tree(rllm_env_t *env, const char *path);
-
-// Export tree structure as JSON
-rllm_error_t rllm_export_tree_json(rllm_context_t *root, char *buf, size_t *buf_size);
+// NOTE: State persistence APIs (rllm_save_tree, rllm_load_tree, rllm_export_tree_json)
+// are planned for future implementation.
 
 //
 // Debugging and introspection
