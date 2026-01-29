@@ -138,7 +138,9 @@ static void te_record_edit(te_context_t *ctx, te_op_type_t type,
 static uint32_t te_get_token_flags(te_context_t *ctx, te_token_t token) {
     uint32_t flags = 0;
 
-    if (llama_token_is_eog(ctx->llama_model, token)) {
+    // Check for end-of-generation tokens (EOS or EOT)
+    if (token == llama_token_eos(ctx->llama_model) ||
+        token == llama_token_eot(ctx->llama_model)) {
         flags |= TE_FLAG_EOS;
     }
 
@@ -146,12 +148,10 @@ static uint32_t te_get_token_flags(te_context_t *ctx, te_token_t token) {
         flags |= TE_FLAG_BOS;
     }
 
-    // Check for special tokens
-    llama_token_attr attr = llama_token_get_attr(ctx->llama_model, token);
-    if (attr & LLAMA_TOKEN_ATTR_CONTROL) {
+    // Check for special/control tokens using token type
+    enum llama_token_type ttype = llama_token_get_type(ctx->llama_model, token);
+    if (ttype == LLAMA_TOKEN_TYPE_CONTROL) {
         flags |= TE_FLAG_CONTROL;
-    }
-    if (attr & LLAMA_TOKEN_ATTR_SPECIAL) {
         flags |= TE_FLAG_SPECIAL;
     }
 
@@ -256,7 +256,7 @@ int te_token_to_string(te_context_t *ctx, te_token_t token, char *buf, size_t bu
         return -1;
     }
 
-    return llama_token_to_piece(ctx->llama_model, token, buf, buf_size, 0, true);
+    return llama_token_to_piece(ctx->llama_model, token, buf, buf_size);
 }
 
 te_error_t te_get_tokens(te_context_t *ctx, te_range_t range, te_token_t *out, size_t *n_out) {
@@ -313,7 +313,7 @@ te_error_t te_detokenize(te_context_t *ctx, const te_token_t *tokens, size_t n_t
     char piece[256];
 
     for (size_t i = 0; i < n_tokens; i++) {
-        int len = llama_token_to_piece(ctx->llama_model, tokens[i], piece, sizeof(piece), 0, true);
+        int len = llama_token_to_piece(ctx->llama_model, tokens[i], piece, sizeof(piece));
         if (len < 0) {
             return TE_ERROR_INVALID_TOKEN;
         }
@@ -823,7 +823,7 @@ te_error_t te_clear_kv_cache(te_context_t *ctx, te_seq_id_t seq_id) {
 te_error_t te_shift_kv_cache(te_context_t *ctx, te_seq_id_t seq_id, te_pos_t delta) {
     if (!ctx) return TE_ERROR_INVALID_CONTEXT;
 
-    llama_kv_cache_seq_add(ctx->llama_ctx, seq_id, 0, -1, delta);
+    llama_kv_cache_seq_shift(ctx->llama_ctx, seq_id, 0, -1, delta);
     return TE_OK;
 }
 

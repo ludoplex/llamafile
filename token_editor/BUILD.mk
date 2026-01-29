@@ -19,13 +19,13 @@ o/$(MODE)/token_editor/token_editor.a:				\
 
 # Main CLI demo application
 o/$(MODE)/token_editor/token_editor_cli:			\
-		o/$(MODE)/token_editor/main.o			\
+		o/$(MODE)/token_editor/token_editor_cli.o	\
 		o/$(MODE)/token_editor/token_editor.a		\
 		o/$(MODE)/llama.cpp/llama.cpp.a
 
 # Token editor demo (interactive token manipulation)
 o/$(MODE)/token_editor/token_demo:				\
-		o/$(MODE)/token_editor/demo.o			\
+		o/$(MODE)/token_editor/token_demo.o		\
 		o/$(MODE)/token_editor/token_editor.a		\
 		o/$(MODE)/llama.cpp/llama.cpp.a
 

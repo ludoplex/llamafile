@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
     printf("================================\n");
     printf("Loading model: %s\n", model_path);
 
-    llama_backend_init();
+    llama_backend_init(false);
 
     llama_model_params mparams = llama_model_default_params();
     llama_model *model = llama_load_model_from_file(model_path, mparams);

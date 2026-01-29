@@ -25,7 +25,7 @@
 #include <pthread.h>
 
 #include "llama.cpp/llama.h"
-#include "llama.cpp/common/sampling.h"
+#include "llama.cpp/sampling.h"
 
 //
 // Default configurations
@@ -703,8 +703,9 @@ rllm_error_t rllm_complete(rllm_context_t *ctx, rllm_completion_params_t params)
 
         free(candidates.data);
 
-        // Check for EOS
-        if (llama_token_is_eog(te->llama_model, next_token)) {
+        // Check for end-of-generation (EOS or EOT tokens)
+        if (next_token == llama_token_eos(te->llama_model) ||
+            next_token == llama_token_eot(te->llama_model)) {
             break;
         }
 

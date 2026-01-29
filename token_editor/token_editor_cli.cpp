@@ -34,7 +34,7 @@
 #include <signal.h>
 
 #include "llama.cpp/llama.h"
-#include "llama.cpp/common/common.h"
+#include "llama.cpp/common.h"
 
 // ANSI colors for terminal output
 #define COLOR_RESET   "\033[0m"
@@ -539,8 +539,8 @@ int main(int argc, char **argv) {
     // Setup signal handler
     signal(SIGINT, signal_handler);
 
-    // Initialize llama backend
-    llama_backend_init();
+    // Initialize llama backend (false = no NUMA)
+    llama_backend_init(false);
 
     // Load model
     printf("Loading model: %s\n", model_path);
