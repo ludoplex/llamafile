@@ -13,11 +13,12 @@ include build/rules.mk
 
 include llamafile/BUILD.mk
 include llama.cpp/BUILD.mk
+include token_editor/BUILD.mk
 
 # the root package is `o//` by default
 # building a package also builds its sub-packages
 .PHONY: o/$(MODE)/
-o/$(MODE)/: o/$(MODE)/llama.cpp o/$(MODE)/llamafile
+o/$(MODE)/: o/$(MODE)/llama.cpp o/$(MODE)/llamafile o/$(MODE)/token_editor
 
 # for installing to `make PREFIX=/usr/local`
 .PHONY: install
