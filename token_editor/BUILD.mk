@@ -35,10 +35,17 @@ o/$(MODE)/token_editor/recursive_demo:				\
 		o/$(MODE)/token_editor/token_editor.a		\
 		o/$(MODE)/llama.cpp/llama.cpp.a
 
+# Unit tests
+o/$(MODE)/token_editor/token_editor_test:			\
+		o/$(MODE)/token_editor/token_editor_test.o	\
+		o/$(MODE)/token_editor/token_editor.a		\
+		o/$(MODE)/llama.cpp/llama.cpp.a
+
 .PHONY: o/$(MODE)/token_editor
 o/$(MODE)/token_editor:						\
 		$(TOKEN_EDITOR_OBJS)				\
 		o/$(MODE)/token_editor/token_editor.a		\
 		o/$(MODE)/token_editor/token_editor_cli		\
 		o/$(MODE)/token_editor/token_demo		\
-		o/$(MODE)/token_editor/recursive_demo
+		o/$(MODE)/token_editor/recursive_demo		\
+		o/$(MODE)/token_editor/token_editor_test
