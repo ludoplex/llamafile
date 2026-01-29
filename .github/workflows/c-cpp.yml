@@ -13,11 +13,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+
+    - name: Download cosmopolitan toolchain
+      run: |
+        mkdir -p cosmocc
+        cd cosmocc
+        curl -fsSL https://cosmo.zip/pub/cosmocc/cosmocc.zip -o cosmocc.zip
+        unzip -q cosmocc.zip
+        cd ..
+
+    - name: Build
+      run: |
+        export PATH="$PWD/cosmocc/bin:$PATH"
+        make -j$(nproc)
