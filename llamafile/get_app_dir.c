@@ -16,12 +16,21 @@
 // limitations under the License.
 
 #include "llamafile.h"
-#include <string.h>
+#include "version.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+static const char *llamafile_get_home_dir(void) {
+    const char *homedir;
+    if (!(homedir = getenv("HOME")) || !*homedir)
+        homedir = ".";
+    return homedir;
+}
 
 /**
  * Returns path of directory for app-specific files.
  */
 void llamafile_get_app_dir(char *path, size_t size) {
-    strlcpy(path, llamafile_get_tmp_dir(), size);
-    strlcat(path, "/.llamafile/", size);
+    snprintf(path, size, "%s/.llamafile/v/%d.%d.%d/", llamafile_get_home_dir(), LLAMAFILE_MAJOR,
+             LLAMAFILE_MINOR, LLAMAFILE_PATCH);
 }

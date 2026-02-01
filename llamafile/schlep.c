@@ -15,20 +15,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cosmo.h>
-#include <stdio.h>
-#include <errno.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <sys/auxv.h>
-#include <stdatomic.h>
 #include "llama.cpp/ggml.h"
+#include "llamafile/log.h"
+#include <cosmo.h>
+#include <errno.h>
+#include <pthread.h>
+#include <stdatomic.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #define FPS 24
+#define THREADS 4
 
-struct Schlep {
-    long n;
-    atomic_long i;
+struct PageFaulter {
+    long left;
+    long right;
+    long pagesz;
+    pthread_t th;
+    const char *data;
+    atomic_long *faults;
 };
 
 static char Peek(volatile const char *ptr) {
@@ -37,11 +42,22 @@ static char Peek(volatile const char *ptr) {
 
 char (*pPeek)(volatile const char *) = Peek;
 
+static void *PageFaulter(void *arg) {
+    struct PageFaulter *pf = arg;
+    for (long i = pf->left; i < pf->right; i += pf->pagesz) {
+        pPeek(pf->data + i);
+        atomic_fetch_add_explicit(pf->faults, 1, memory_order_release);
+    }
+    return 0;
+}
+
 static void FormatPercent(char sbuf[static 8], double x) {
     char *p = sbuf;
     int n = x * 100000.5;
-    if (n >= 100000) *p++ = '0' + n / 100000 % 10;
-    if (n >= 10000) *p++ = '0' + n / 10000 % 10;
+    if (n >= 100000)
+        *p++ = '0' + n / 100000 % 10;
+    if (n >= 10000)
+        *p++ = '0' + n / 10000 % 10;
     *p++ = '0' + n / 1000 % 10;
     *p++ = '.';
     *p++ = '0' + n / 100 % 10;
@@ -50,69 +66,61 @@ static void FormatPercent(char sbuf[static 8], double x) {
     *p = 0;
 }
 
-static void *ProgressReporter(void *arg) {
-    struct Schlep *s = arg;
-    pthread_setcancelstate(PTHREAD_CANCEL_MASKED, 0);
-    while (!usleep(1. / FPS * 1e6)) {
-        long i = atomic_load_explicit(&s->i, memory_order_acquire);
-        char percent[8];
-        FormatPercent(percent, (double)i / s->n);
-        tinyprint(2, "\rmemory map ", percent, "% loaded...\033[K", NULL);
-    }
-    tinyprint(2, "\r\033[K", NULL);
-    return 0;
-}
-
 /**
  * Loads memory off disk while reporting progress.
  */
 void llamafile_schlep(const void *data, size_t size) {
 
-    // don't bother if memory is small
-    if (size < 128 * 1024 * 1024) {
+    // avoid warmup
+    if (!FLAG_warmup)
         return;
-    }
+
+    // don't bother if logging is disabled
+    if (FLAG_log_disable)
+        return;
+
+    // don't bother if memory is small
+    if (size < 128 * 1024 * 1024)
+        return;
 
     // don't bother if stderr isn't a terminal
-    if (!isatty(2)) {
+    if (!isatty(2))
         return;
-    }
 
-    // setup shared memory
-    struct Schlep s = {size};
-
-    // get microprocessor page size
-    long pagesz = getauxval(AT_PAGESZ);
-
-    // create worker thread
+    // launch threads
     errno_t err;
-    pthread_t th;
-    sigset_t blockall;
-    pthread_attr_t attr;
-    sigfillset(&blockall);
-    pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr, 65536);
-    pthread_attr_setguardsize(&attr, pagesz);
-    pthread_attr_setsigmask_np(&attr, &blockall);
-    err = pthread_create(&th, &attr, ProgressReporter, &s);
-    pthread_attr_destroy(&attr);
-    if (err) {
-        // don't bother without thread
-        errno = err;
-        perror("pthread_create");
-        return;
+    atomic_long faults = 0;
+    long pagesz = getpagesize();
+    long stride = size / THREADS;
+    long pages = (stride + pagesz - 1) / pagesz * THREADS;
+    struct PageFaulter pf[THREADS];
+    for (int i = 0; i < THREADS; ++i) {
+        pf[i].data = data;
+        pf[i].pagesz = pagesz;
+        pf[i].faults = &faults;
+        pf[i].left = stride * i;
+        pf[i].right = stride * (i + 1);
+        err = pthread_create(&pf[i].th, 0, PageFaulter, pf + i);
+        if (err) {
+            errno = err;
+            perror("pthread_create");
+            exit(1);
+        }
     }
 
-    // fault each page in memory region
-    long i = 0;
-    volatile const char *p = data;
-    while (i < s.n) {
-        pPeek(p + i);
-        i += pagesz;
-        atomic_store_explicit(&s.i, i, memory_order_release);
+    // report progress
+    for (;;) {
+        char percent[8];
+        long count = atomic_load_explicit(&faults, memory_order_acquire);
+        if (count == pages)
+            break;
+        FormatPercent(percent, (double)count / pages);
+        tinyprint(2, "\rmemory map ", percent, "% loaded...\033[K", NULL);
+        usleep(1. / FPS * 1e6);
     }
+    tinyprint(2, "\r\033[K", NULL);
 
-    // terminate worker thread
-    pthread_cancel(th);
-    pthread_join(th, 0);
+    // wait for workers
+    for (int i = 0; i < THREADS; ++i)
+        pthread_join(pf[i].th, 0);
 }
