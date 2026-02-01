@@ -81,7 +81,7 @@ class LlamafileDelegate:
             timeout: Timeout in seconds for inference (default: 60).
         """
         self.llamafile_path = self._find_llamafile(llamafile_path)
-        self.model_path = Path(model_path) if model_path else None
+        self.model_path = self._find_model(model_path)
         self.gpu_layers = gpu_layers
         self.timeout = timeout
         
@@ -91,9 +91,13 @@ class LlamafileDelegate:
             return Path(path)
         
         # Try common locations
+        workspace = Path(__file__).parent
         candidates = [
+            workspace / "bin" / "llamafile.exe",
+            workspace / "bin" / "llamafile",
             Path("./llamafile"),
             Path("./llamafile.exe"),
+            Path.home() / ".openclaw" / "workspace" / "bin" / "llamafile.exe",
             Path.home() / ".local" / "bin" / "llamafile",
             Path("/usr/local/bin/llamafile"),
         ]
@@ -110,6 +114,27 @@ class LlamafileDelegate:
         raise FileNotFoundError(
             "llamafile not found. Provide path or add to PATH."
         )
+    
+    def _find_model(self, path: Optional[Union[str, Path]]) -> Optional[Path]:
+        """Find GGUF model file."""
+        if path:
+            return Path(path)
+        
+        # Try common locations
+        workspace = Path(__file__).parent
+        candidates = [
+            workspace / "models",
+            Path.home() / ".openclaw" / "workspace" / "models",
+            Path.home() / ".cache" / "llamafile" / "models",
+        ]
+        
+        for candidate in candidates:
+            if candidate.exists():
+                # Find first .gguf file
+                for gguf in candidate.glob("*.gguf"):
+                    return gguf
+        
+        return None  # Model might be baked into llamafile
     
     def _build_prompt(self, prompt: str) -> str:
         """Wrap prompt in Qwen chat template."""
@@ -138,14 +163,29 @@ class LlamafileDelegate:
             "-r", "<|im_end|>",
         ])
         
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=self.timeout,
-        )
-        
-        return result.stdout.strip()
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=self.timeout,
+                encoding='utf-8',
+                errors='replace',  # Handle any encoding issues gracefully
+            )
+            
+            if result.returncode != 0 and result.stderr:
+                # Log error but don't crash
+                import sys
+                print(f"[llamafile warning] {result.stderr[:200]}", file=sys.stderr)
+            
+            if result.stdout:
+                return result.stdout.strip()
+            return ""
+            
+        except subprocess.TimeoutExpired:
+            return "[error: inference timeout]"
+        except Exception as e:
+            return f"[error: {str(e)[:100]}]"
     
     def ask(
         self,
