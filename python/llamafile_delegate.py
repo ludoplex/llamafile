@@ -30,6 +30,8 @@ Part of the ludoplex/llamafile fork.
 import subprocess
 import json
 import shutil
+import urllib.request
+import urllib.error
 from pathlib import Path
 from typing import Optional, Union, Dict, Any
 
@@ -70,6 +72,7 @@ class LlamafileDelegate:
         model_path: Optional[Union[str, Path]] = None,
         gpu_layers: int = 99,
         timeout: int = 60,
+        server_url: Optional[str] = None,
     ):
         """
         Initialize the delegate.
@@ -79,11 +82,25 @@ class LlamafileDelegate:
             model_path: Path to GGUF model. Required if not baked into llamafile.
             gpu_layers: Number of layers to offload to GPU (default: 99 = all).
             timeout: Timeout in seconds for inference (default: 60).
+            server_url: URL of running llamafile server (e.g., http://localhost:8081).
+                       If provided, uses HTTP API instead of spawning process.
         """
-        self.llamafile_path = self._find_llamafile(llamafile_path)
-        self.model_path = self._find_model(model_path)
+        self.server_url = server_url or self._detect_server()
+        self.llamafile_path = self._find_llamafile(llamafile_path) if not self.server_url else None
+        self.model_path = self._find_model(model_path) if not self.server_url else None
         self.gpu_layers = gpu_layers
         self.timeout = timeout
+    
+    def _detect_server(self) -> Optional[str]:
+        """Check if llamafile server is running on default port."""
+        try:
+            req = urllib.request.Request("http://localhost:8081/health", method="GET")
+            with urllib.request.urlopen(req, timeout=2) as resp:
+                if resp.status == 200:
+                    return "http://localhost:8081"
+        except:
+            pass
+        return None
         
     def _find_llamafile(self, path: Optional[Union[str, Path]]) -> Path:
         """Find llamafile binary."""
@@ -146,7 +163,48 @@ class LlamafileDelegate:
         max_tokens: int = 200,
         temperature: float = 0.7,
     ) -> str:
-        """Run inference."""
+        """Run inference via server (HTTP) or CLI (subprocess)."""
+        if self.server_url:
+            return self._run_server(prompt, max_tokens, temperature)
+        return self._run_cli(prompt, max_tokens, temperature)
+    
+    def _run_server(
+        self,
+        prompt: str,
+        max_tokens: int = 200,
+        temperature: float = 0.7,
+    ) -> str:
+        """Run inference via HTTP API (faster, model stays loaded)."""
+        try:
+            payload = {
+                "model": "qwen2.5",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "stream": False,
+            }
+            data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                f"{self.server_url}/v1/chat/completions",
+                data=data,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+                return result["choices"][0]["message"]["content"].strip()
+        except urllib.error.URLError as e:
+            return f"[error: server connection failed - {str(e)[:50]}]"
+        except Exception as e:
+            return f"[error: {str(e)[:100]}]"
+    
+    def _run_cli(
+        self,
+        prompt: str,
+        max_tokens: int = 200,
+        temperature: float = 0.7,
+    ) -> str:
+        """Run inference via CLI (spawns process each time)."""
         chat_prompt = self._build_prompt(prompt)
         
         cmd = [str(self.llamafile_path)]
